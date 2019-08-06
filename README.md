@@ -1,1 +1,1 @@
-# This python script finds and generates a file 
+# This python script finds broken links 
