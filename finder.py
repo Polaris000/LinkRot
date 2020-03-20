@@ -17,8 +17,6 @@ headers_broken_file = ""
 
 main_url = ""
 
-count = 0
-
 
 def summary():
     print()
@@ -36,13 +34,7 @@ def summary():
 
 def read_url(url):
 
-    global count
     checked_links.append(url)
-    count += 1
-
-    if count > 30:
-        summary()
-        sys.exit(0)
 
     url = n.normalize(url, main_url_domain, main_url_ext)
 
