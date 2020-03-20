@@ -1,15 +1,13 @@
 def normalize(url, main_url_domain, extension):
-	if url[0] == "#":
 
-		url = "https://" + main_url_domain + extension + "/" + url
+    updated_url = {
+      "#": "https://" + main_url_domain + extension + "/" + url,
+      "//": "https:" + url,
+      "/": "https://" + main_url_domain + extension + url,
+      "mailto:": None
+    }
 
-	elif url.startswith('//'):
-		url = "https:" + url
-
-	elif url.startswith('/'):
-		url = "https://" + main_url_domain + extension + url
-
-	elif url.startswith("mailto:"):
-		url = None
-
-	return url
+    for key in updated_url.keys():
+        if url.startswith(key):
+            return updated_url[key]
+    return url

@@ -7,68 +7,84 @@ import normalizer as n
 
 broken_links = []
 checked_links = []
-count = 0
+blank_links = []
 
-checked_file = open("checked_urls.csv", "w")
-broken_file = open("broken_urls.csv", "w")
+checked_file = None
+broken_file = None
 
-headers_checked_file = "Sr_No." + "," + "url" + "," + "status_code" + "," + "Proper" + "\n"
-headers_broken_file = "url" + "," + "status_code" + "\n"
-
-checked_file.write(headers_checked_file)
-broken_file.write(headers_broken_file)
+headers_checked_file = ""
+headers_broken_file = ""
 
 main_url = ""
 
 
 def read_url(url):
 
-	global count
+    checked_links.append(url)
+    url = n.normalize(url, main_url_domain, main_url_ext)
 
-	url = n.normalize(url, main_url_domain, main_url_ext)
+    # check normalizer.py mailto: condition
+    if url is not None:
+        try:
+            url_request = requests.get(url)
+        except Exception:
+            print("Could not read url")
+            return None
 
-	#check normalizer.py mailto: condition
-	if url is not None:
-		url_request = requests.get(url)
+        print("Extracting details from: ", url)
+        url_domain = s.extract(url)["url_domain"]
 
-		count += 1
-		print(count)
-		url_domain = s.extract(url)["url_domain"]
+        is_ok = True
 
-		is_ok = True
+        if url_request.status_code >= 400:
 
-		if url_request.status_code >= 400:
+            broken_links.append(url)
+            is_ok = False
 
-			broken_links.append(url)
-			is_ok = False
+            write_broken = url + "," + str(url_request.status_code) + "\n"
+            broken_file.write(write_broken)
 
-			write_broken = url + "," + str(url_request.status_code) + "\n"
-			broken_file.write(write_broken)
+        soup = BeautifulSoup(url_request.content, "html.parser", from_encoding="iso-8859-1")
 
-		print(url_request.status_code)
-		soup = BeautifulSoup(url_request.content, "html.parser", from_encoding="iso-8859-1")
+        url_list = soup.find_all('a', href=True)
 
-		url_list = soup.find_all('a', href=True)
-		checked_links.append(url)
+        write_checked = url + "," \
+            + str(url_request.status_code) + "," + str(is_ok) + "\n"
 
-		write_checked = str(count) + "," + url + "," + str(url_request.status_code) + "," + str(is_ok) + "\n"
-		checked_file.write(write_checked)
+        checked_file.write(write_checked)
 
-		if url_domain == main_url_domain:
+        if url_domain == main_url_domain:
 
-			for link in url_list:
+            for link in url_list:
+                if not link['href']:
+                    continue
 
-				if link['href'] not in checked_links:
-					print(link['href'])
-					read_url(link['href'])
+                if link['href'] not in checked_links:
+                    read_url(link['href'])
+
+
+def initialize():
+    global checked_file, broken_file, headers_checked_file, headers_broken_file
+
+    checked_file = open("checked_urls.csv", "w")
+    broken_file = open("broken_urls.csv", "w")
+
+    headers_checked_file = "url" + "," + "status_code" + "," \
+        + "is_ok" + "\n"
+    headers_broken_file = "url" + "," + "status_code" + "\n"
+
+    checked_file.write(headers_checked_file)
+    broken_file.write(headers_broken_file)
 
 
 if __name__ == '__main__':
 
-	main_url = sys.argv[1]
-	main_url_domain = s.extract(main_url)['url_domain']
-	main_url_ext = s.extract(main_url)['url_tld']
+    initialize()
+    s.read_tld_list()
+    main_url = sys.argv[1]
+    print("Extracting details from ", main_url)
+    main_url_domain, main_url_ext = s.extract(main_url)
 
-	read_url(main_url)
-	checked_file.close()
-	broken_file.close()
+    read_url(main_url)
+    checked_file.close()
+    broken_file.close()
