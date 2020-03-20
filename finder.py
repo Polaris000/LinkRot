@@ -17,22 +17,50 @@ headers_broken_file = ""
 
 main_url = ""
 
+count = 0
+
+
+def summary():
+    print()
+    print("Summary")
+    print("--------------------------------------------------")
+    print("URL: \t\t", main_url)
+    print("URL Domain: \t", main_url_domain)
+    print("URL Extension: \t", main_url_ext)
+    print("Links Checked: \t", len(checked_links))
+    print("Broken Links: \t", len(broken_links))
+    print("Link Rot: \t{0:.2f}%".format(0 if not len(checked_links) else len(broken_links)
+          / len(checked_links) * 100))
+    print("--------------------------------------------------")
+
 
 def read_url(url):
 
+    global count
     checked_links.append(url)
+    count += 1
+
+    if count > 30:
+        summary()
+        sys.exit(0)
+
     url = n.normalize(url, main_url_domain, main_url_ext)
 
     # check normalizer.py mailto: condition
+    print("Fetching page at {}...".format(url), end='')
     if url is not None:
         try:
             url_request = requests.get(url)
         except Exception:
-            print("Could not read url")
+            print("Could not read url...")
             return None
+        print("...done")
 
-        print("Extracting details from: ", url)
-        url_domain = s.extract(url)["url_domain"]
+        if url != main_url:
+            print("Checking: ", url)
+            url_domain = s.extract(url)["url_domain"]
+        else:
+            url_domain = main_url_domain
 
         is_ok = True
 
@@ -43,10 +71,16 @@ def read_url(url):
 
             write_broken = url + "," + str(url_request.status_code) + "\n"
             broken_file.write(write_broken)
+            print("* Broken url: ", url)
+            print("")
+            return None
 
         soup = BeautifulSoup(url_request.content, "html.parser", from_encoding="iso-8859-1")
 
+        print("Looking for links on the webpage...", end='')
         url_list = soup.find_all('a', href=True)
+        print("...done")
+        print("")
 
         write_checked = url + "," \
             + str(url_request.status_code) + "," + str(is_ok) + "\n"
@@ -54,7 +88,6 @@ def read_url(url):
         checked_file.write(write_checked)
 
         if url_domain == main_url_domain:
-
             for link in url_list:
                 if not link['href']:
                     continue
@@ -82,9 +115,15 @@ if __name__ == '__main__':
     initialize()
     s.read_tld_list()
     main_url = sys.argv[1]
-    print("Extracting details from ", main_url)
-    main_url_domain, main_url_ext = s.extract(main_url)
 
+    print("Received url: ", main_url)
+    print("--------------------------------------------------")
+    print("Starting...\n")
+    print("Checking ", main_url)
+
+    main_url_domain, main_url_ext = s.extract(main_url).values()
     read_url(main_url)
+
+    summary()
     checked_file.close()
     broken_file.close()
